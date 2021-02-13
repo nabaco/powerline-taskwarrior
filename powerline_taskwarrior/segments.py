@@ -166,6 +166,65 @@ class TaskwarriorSegment(TaskwarriorBaseSegment):
         return ActiveTaskSegment()(self.pl, self.task_alias) + ContextSegment()(self.pl, self.task_alias)
 
 
+class TaskSummarySegment(TaskwarriorBaseSegment):
+    def build_segments(self):
+        self.pl.debug('Build Summary segment')
+        string = ""
+        inbox = self.inbox_tasks()
+        urgent = self.urgent_tasks()
+        today = self.due_today_tasks()
+        tomorrow = self.due_tomorrow_tasks()
+        overdue = self.overdue_tasks()
+
+        if inbox:
+            string += "I"+inbox+"|"
+        if urgent:
+            string += "U"+urgent+"|"
+        if today:
+            string += "D"+today+"|"
+        if tomorrow:
+            string += "T"+tomorrow+"|"
+        if overdue:
+            string += "O"+overdue+"|"
+
+        if string != "":
+            return [{
+                'contents': string,
+                'highlight_groups': ['taskwarrior:context'],
+                }]
+
+        return []
+
+    def inbox_tasks(self):
+        count, err = self.execute([self.task_alias, '+in', 'count'])
+
+        if not err and count:
+            return count.pop()
+
+    def urgent_tasks(self):
+        count, err = self.execute([self.task_alias, 'urgency', '\>', '10', 'count'])
+
+        if not err and count:
+            return count.pop()
+
+    def due_today_tasks(self):
+        count, err = self.execute([self.task_alias, '+TODAY', 'count'])
+
+        if not err and count:
+            return count.pop()
+
+    def due_tomorrow_tasks(self):
+        count, err = self.execute([self.task_alias, '+TOMORROW', 'count'])
+
+        if not err and count:
+            return count.pop()
+
+    def overdue_tasks(self):
+        count, err = self.execute([self.task_alias, '+OVERDUE', 'count'])
+
+        if not err and count:
+            return count.pop()
+
 taskwarrior = with_docstring(
     TaskwarriorSegment(),
     '''Return information from Taskwarrior task manager.
@@ -201,3 +260,11 @@ next_task = with_docstring(
 
     Highlight groups used: ``taskwarrior:next_id``, ``taskwarrior:next_desc``
     ''')
+
+summary = with_docstring(
+	TaskSummarySegment(), '''Return information from Taskwarrior task manager.
+
+	It will show the count of Urgent, Due, and Overdue tasks, as  well as tasks in GTD Inbox.
+
+	Highligh groups used: ``taskwarrior.context``
+	''')
